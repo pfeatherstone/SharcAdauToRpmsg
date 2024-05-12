@@ -1,6 +1,6 @@
 /*
 **
-** mcapi_config.c source file generated on May 12, 2024 at 14:33:31.	
+** mcapi_config.c source file generated on May 12, 2024 at 15:01:04.	
 **
 ** Copyright (C) 2000-2024 Analog Devices Inc., All Rights Reserved.
 **
