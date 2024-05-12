@@ -32,4 +32,18 @@ void rpmsg_free_channel (
 	const char*								name
 );
 
+typedef enum {
+	RPMSG_START = 0, // ARM 	-> SHARC
+	RPMSG_STARTED,	 // SHARC	-> ARM
+	RPMSG_STOP,		 // ARM		-> SHARC
+	RPMSG_STOPPED	 // SHARC	-> ARM
+} rpmsg_type_t;
+
+struct rpmsg_packet
+{
+	uint8_t 	type;
+	uint8_t 	pad;
+	uint16_t 	seq;
+};
+
 #endif /* INIT_H_ */
