@@ -1,0 +1,6 @@
+[submodule "sharc-reusable-components"]
+	path = sharc-reusable-components
+	url = https://github.com/analogdevicesinc/sharc-reusable-components.git
+[submodule "rpmsg-lite"]
+	path = rpmsg-lite
+	url = https://github.com/analogdevicesinc/rpmsg-lite.git
