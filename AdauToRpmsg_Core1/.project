@@ -44,6 +44,26 @@
 			<location>/home/pf/workspace/SharcAdauToRpmsg/rpmsg-lite/lib</location>
 		</link>
 		<link>
+			<name>src/sharc_reusable_components/inc</name>
+			<type>2</type>
+			<location>/home/pf/workspace/SharcAdauToRpmsg/sharc-reusable-components/simple-drivers/peripherals/inc</location>
+		</link>
+		<link>
+			<name>src/sharc_reusable_components/pcg</name>
+			<type>2</type>
+			<location>/home/pf/workspace/SharcAdauToRpmsg/sharc-reusable-components/simple-drivers/peripherals/pcg</location>
+		</link>
+		<link>
+			<name>src/sharc_reusable_components/sport</name>
+			<type>2</type>
+			<location>/home/pf/workspace/SharcAdauToRpmsg/sharc-reusable-components/simple-drivers/peripherals/sport</location>
+		</link>
+		<link>
+			<name>src/sharc_reusable_components/twi</name>
+			<type>2</type>
+			<location>/home/pf/workspace/SharcAdauToRpmsg/sharc-reusable-components/simple-drivers/peripherals/twi</location>
+		</link>
+		<link>
 			<name>system/services/tru/adi_tru.c</name>
 			<type>1</type>
 			<locationURI>CCES/SHARC/lib/src/services/Source/tru/adi_tru.c</locationURI>

@@ -49,6 +49,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/rpmsg-lite/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/rpmsg-lite/include/environment/bm}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/rpmsg-lite/include/platform/adsp-sc5xx-sharc}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/sharc_reusable_components/inc}&quot;"/>
 								</option>
 								<inputType id="compiler.inputType.829313243" name="C/C++ Source" superClass="compiler.inputType"/>
 							</tool>
@@ -152,6 +153,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/rpmsg-lite/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/rpmsg-lite/include/environment/bm}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/rpmsg-lite/include/platform/adsp-sc5xx-sharc}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/sharc_reusable_components/inc}&quot;"/>
 								</option>
 								<inputType id="compiler.inputType.364436349" name="C/C++ Source" superClass="compiler.inputType"/>
 							</tool>
