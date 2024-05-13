@@ -263,16 +263,35 @@ void rpmsg_free_channel (
 	rpmsg_lite_destroy_ept(ctx, &ept->ept);
 }
 
-struct codec_state
+/***********************************************************************
+ * UMM_MALLOC heap initialization
+ **********************************************************************/
+__attribute__ ((section(".heap")))
+	static uint8_t umm_sdram_heap[UMM_SDRAM_HEAP_SIZE];
+
+__attribute__ ((section(".l3_uncached_data")))
+    static uint8_t umm_sdram_uncached_heap[UMM_SDRAM_UNCACHED_HEAP_SIZE];
+
+__attribute__ ((section(".l2_uncached_data")))
+    static uint8_t umm_l2_uncached_heap[UMM_L2_UNCACHED_HEAP_SIZE];
+
+__attribute__ ((section(".l2_cached_data")))
+    static uint8_t umm_l2_cached_heap[UMM_L2_CACHED_HEAP_SIZE];
+
+void heap_initialize(void)
 {
-	sTWI* 		adau1761TwiHandle;
-	sSPORT*		codecSportOutHandle;
-	sSPORT*		codecSportInHandle;
-    void*		codecAudioIn[2];
-    void*		codecAudioOut[2];
-    unsigned 	codecAudioInLen;
-	unsigned 	codecAudioOutLen;
-};
+	/* Initialize the cached L3 SDRAM heap (default heap). */
+	umm_init(UMM_SDRAM_HEAP, umm_sdram_heap, UMM_SDRAM_HEAP_SIZE);
+
+	/* Initialize the un-cached L3 SDRAM heap. */
+	umm_init(UMM_SDRAM_UNCACHED_HEAP, umm_sdram_uncached_heap, UMM_SDRAM_UNCACHED_HEAP_SIZE);
+
+	/* Initialize the L2 uncached heap. */
+	umm_init(UMM_L2_UNCACHED_HEAP, umm_l2_uncached_heap, UMM_L2_UNCACHED_HEAP_SIZE);
+
+	/* Initialize the L2 cached heap. */
+	umm_init(UMM_L2_CACHED_HEAP, umm_l2_cached_heap, UMM_L2_CACHED_HEAP_SIZE);
+}
 
 /***********************************************************************
  * This function allocates audio buffers in L3 cached memory and
@@ -355,7 +374,8 @@ SPORT_SIMPLE_CONFIG cfgTDM8x1 = {
 void adau1761_sport_init (
 	struct codec_state *context,
 	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioOut,
-	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioIn
+	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioIn,
+	void*						priv_ptr
 )
 {
     SPORT_SIMPLE_CONFIG sportCfg;
@@ -370,7 +390,7 @@ void adau1761_sport_init (
     memcpy(sportCfg.dataBuffers, context->codecAudioOut, sizeof(sportCfg.dataBuffers));
     context->codecSportOutHandle = single_sport_init(
         SPORT0A, &sportCfg, codecAudioOut,
-        NULL, &len, context, false, NULL
+        NULL, &len, priv_ptr, false, NULL
     );
     assert(context->codecAudioOutLen == len);
 
@@ -383,7 +403,7 @@ void adau1761_sport_init (
     memcpy(sportCfg.dataBuffers, context->codecAudioIn, sizeof(sportCfg.dataBuffers));
     context->codecSportInHandle = single_sport_init(
         SPORT0B, &sportCfg, codecAudioIn,
-        NULL, &len, context, false, NULL
+        NULL, &len, priv_ptr, false, NULL
     );
     assert(context->codecAudioInLen == len);
 
@@ -451,7 +471,8 @@ static void sru_config_sharc_sam_adau1761_slave(void)
 void adau1761_init (
 	struct codec_state* 		context,
 	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioOut,
-	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioIn
+	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioIn,
+	void* 						priv_ptr
 )
 {
     /* Configure the DAI routing */
@@ -464,5 +485,5 @@ void adau1761_init (
     init_adau1761(context->adau1761TwiHandle, SAM_ADAU1761_I2C_ADDR);
 
     /* Initialize the CODEC SPORTs */
-    adau1761_sport_init(context, codecAudioOut, codecAudioIn);
+    adau1761_sport_init(context, codecAudioOut, codecAudioIn, priv_ptr);
 }
