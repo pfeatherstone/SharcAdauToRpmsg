@@ -7,15 +7,30 @@
 
 /* Standard library headers */
 #include <string.h>
+#include <assert.h>
 
 /* ADI headers */
 #include <sys/adi_core.h>
+#include <sruSC589.h>
+
+/* Simple driver headers */
+#include "pcg_simple.h"
+#include "umm_malloc.h"
 
 /* Local headers */
 #include "init.h"
+#include "adc/adau1761.h"
 
-#define ADI_RESOURCE_TABLE_INIT_MAGIC (0xADE0AD0E)
-#define ADI_RESOURCE_TABLE_SHARC1_OFFSET (0x400) //1KiB
+#define ADI_RESOURCE_TABLE_INIT_MAGIC 		(0xADE0AD0E)
+#define ADI_RESOURCE_TABLE_SHARC1_OFFSET 	(0x400) //1KiB
+
+#define SYSTEM_MCLK_RATE               		(24576000)
+#define SYSTEM_SAMPLE_RATE             		(48000)
+#define SYSTEM_BLOCK_SIZE              		(64)
+
+#define BITP_PADS0_DAI0_IE_MCLK 			BITP_PADS0_DAI0_IE_PB06
+#define DAI0_MCLK_PIN 						6
+
 /*
  * Expected resource table layout in the shared memory.
  * Initialized by ARM.
@@ -248,3 +263,206 @@ void rpmsg_free_channel (
 	rpmsg_lite_destroy_ept(ctx, &ept->ept);
 }
 
+struct codec_state
+{
+	sTWI* 		adau1761TwiHandle;
+	sSPORT*		codecSportOutHandle;
+	sSPORT*		codecSportInHandle;
+    void*		codecAudioIn[2];
+    void*		codecAudioOut[2];
+    unsigned 	codecAudioInLen;
+	unsigned 	codecAudioOutLen;
+};
+
+/***********************************************************************
+ * This function allocates audio buffers in L3 cached memory and
+ * initializes a single SPORT using the simple SPORT driver.
+ **********************************************************************/
+static sSPORT* single_sport_init (
+	SPORT_SIMPLE_PORT 			sport,
+    SPORT_SIMPLE_CONFIG* 		cfg,
+	SPORT_SIMPLE_AUDIO_CALLBACK cb,
+    void**						pingPongPtrs,
+	unsigned*					pingPongLen,
+	void*						usrPtr,
+    bool 						cached,
+	SPORT_SIMPLE_RESULT* 		result
+)
+{
+    sSPORT *sportHandle;
+    SPORT_SIMPLE_RESULT sportResult;
+    uint32_t dataBufferSize;
+    int i;
+
+    /* Open a handle to the SPORT */
+    sportResult = sport_open(sport, &sportHandle);
+    if (sportResult != SPORT_SIMPLE_SUCCESS) {
+        if (result) {
+            *result = sportResult;
+        }
+        return(NULL);
+    }
+
+    /* Copy application callback info */
+    cfg->callBack = cb;
+    cfg->usrPtr = usrPtr;
+
+    /* Allocate audio buffers if not already allocated */
+    dataBufferSize = sport_buffer_size(cfg);
+    for (i = 0; i < 2; i++) {
+        if (!cfg->dataBuffers[i]) {
+            cfg->dataBuffers[i] = umm_malloc_heap_aligned(
+                UMM_SDRAM_HEAP, dataBufferSize, sizeof(uint32_t));
+            memset(cfg->dataBuffers[i], 0, dataBufferSize);
+        }
+    }
+    cfg->dataBuffersCached = cached;
+    cfg->syncDMA = true;
+
+    /* Configure the SPORT */
+    sportResult = sport_configure(sportHandle, cfg);
+
+    /* Save ping pong data pointers */
+    if (pingPongPtrs) {
+        pingPongPtrs[0] = cfg->dataBuffers[0];
+        pingPongPtrs[1] = cfg->dataBuffers[1];
+    }
+    if (pingPongLen) {
+        *pingPongLen = dataBufferSize;
+    }
+    if (result) {
+        *result = sportResult;
+    }
+
+    return(sportHandle);
+}
+
+/***********************************************************************
+ * Simple SPORT driver 8-ch TDM settings
+ **********************************************************************/
+SPORT_SIMPLE_CONFIG cfgTDM8x1 = {
+    .clkDir 		= SPORT_SIMPLE_CLK_DIR_SLAVE,
+    .fsDir 			= SPORT_SIMPLE_FS_DIR_MASTER,
+    .dataDir 		= SPORT_SIMPLE_DATA_DIR_UNKNOWN,
+    .bitClkOptions 	= SPORT_SIMPLE_CLK_FALLING,
+    .fsOptions 		= SPORT_SIMPLE_FS_OPTION_EARLY,
+    .tdmSlots 		= SPORT_SIMPLE_TDM_8,
+    .wordSize 		= SPORT_SIMPLE_WORD_SIZE_32BIT,
+    .dataEnable 	= SPORT_SIMPLE_ENABLE_PRIMARY,
+    .frames 		= SYSTEM_BLOCK_SIZE,
+};
+
+void adau1761_sport_init (
+	struct codec_state *context,
+	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioOut,
+	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioIn
+)
+{
+    SPORT_SIMPLE_CONFIG sportCfg;
+    SPORT_SIMPLE_RESULT sportResult;
+    unsigned len;
+
+    /* SPORT0A: CODEC data out */
+    sportCfg 					= cfgTDM8x1;
+    sportCfg.dataDir 			= SPORT_SIMPLE_DATA_DIR_TX;
+    sportCfg.fsDir 				= SPORT_SIMPLE_FS_DIR_MASTER;
+    sportCfg.dataBuffersCached 	= false;
+    memcpy(sportCfg.dataBuffers, context->codecAudioOut, sizeof(sportCfg.dataBuffers));
+    context->codecSportOutHandle = single_sport_init(
+        SPORT0A, &sportCfg, codecAudioOut,
+        NULL, &len, context, false, NULL
+    );
+    assert(context->codecAudioOutLen == len);
+
+
+    /* SPORT0B: CODEC data in */
+    sportCfg 					= cfgTDM8x1;
+    sportCfg.dataDir 			= SPORT_SIMPLE_DATA_DIR_RX;
+    sportCfg.fsDir 				= SPORT_SIMPLE_FS_DIR_SLAVE;
+    sportCfg.dataBuffersCached 	= false;
+    memcpy(sportCfg.dataBuffers, context->codecAudioIn, sizeof(sportCfg.dataBuffers));
+    context->codecSportInHandle = single_sport_init(
+        SPORT0B, &sportCfg, codecAudioIn,
+        NULL, &len, context, false, NULL
+    );
+    assert(context->codecAudioInLen == len);
+
+    /* Start SPORT0A/B */
+    sportResult = sport_start(context->codecSportOutHandle, true);
+    sportResult = sport_start(context->codecSportInHandle, true);
+}
+
+void adau1761_sport_deinit(struct codec_state *context)
+{
+    if (context->codecSportOutHandle) {
+        sport_close(&context->codecSportOutHandle);
+    }
+    if (context->codecSportInHandle) {
+        sport_close(&context->codecSportInHandle);
+    }
+}
+
+/***********************************************************************
+ * PCGA generates 12.288 MHz TDM8 BCLK from 24.576 MCLK/BCLK
+ **********************************************************************/
+void adau1761_cfg_pcg(void)
+{
+    /* Configure static PCG A parameters */
+    PCG_SIMPLE_CONFIG pcg_a = {
+        .pcg 					= PCG_A,         	// PCG A
+        .clk_src 				= PCG_SRC_DAI_PIN,	// Sourced from DAI
+        .clk_in_dai_pin 		= DAI0_MCLK_PIN, 	// Sourced from DAI MCLK pin
+        .lrclk_clocks_per_frame = 256,   // Not used
+        .sync_to_fs = false
+    };
+
+    /* Configure the PCG BCLK depending on the cfgTDM8x1 SPORT config */
+    pcg_a.bitclk_div = SYSTEM_MCLK_RATE / (cfgTDM8x1.wordSize * cfgTDM8x1.tdmSlots * SYSTEM_SAMPLE_RATE);
+    assert(pcg_a.bitclk_div > 0);
+
+    /* This sets everything up */
+    pcg_open(&pcg_a);
+    pcg_enable(PCG_A, true);
+}
+
+/***********************************************************************
+ * ADAU1761 CODEC / SPORT0 / SRU initialization (TDM8 clock slave)
+ **********************************************************************/
+static void sru_config_sharc_sam_adau1761_slave(void)
+{
+    SRU(HIGH, DAI0_PBEN01_I);        // ADAU1761 DAC data is an output
+    SRU(LOW,  DAI0_PBEN02_I);        // ADAU1761 ADC data is an input
+    SRU(HIGH, DAI0_PBEN03_I);        // ADAU1761 CLK is an output
+    SRU(HIGH, DAI0_PBEN04_I);        // ADAU1761 FS is an output
+
+    SRU(PCG0_CLKA_O, SPT0_ACLK_I);   // PCG-A BCLK to SPORT0A BCLK
+    SRU(PCG0_CLKA_O, SPT0_BCLK_I);   // PCG-A BCLK to SPORT0A BCLK
+    SRU(PCG0_CLKA_O, DAI0_PB03_I);   // PCG-A BCLK to ADAU1761
+
+    SRU(SPT0_AFS_O, DAI0_PB04_I);    // SPORT0A FS to ADAU1761
+    SRU(SPT0_AFS_O, SPT0_BFS_I);     // SPORT0A FS to SPORT0B
+
+    SRU(DAI0_PB02_O, SPT0_BD0_I);     // ADAU1761 ADC pin to SPORT0B input
+    SRU(SPT0_AD0_O,  DAI0_PB01_I);    // SPORT0A output to ADAU1761 DAC pin
+}
+
+#define SAM_ADAU1761_I2C_ADDR  (0x38)
+
+void adau1761_init (
+	struct codec_state* 		context,
+	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioOut,
+	SPORT_SIMPLE_AUDIO_CALLBACK codecAudioIn
+)
+{
+    /* Configure the DAI routing */
+    sru_config_sharc_sam_adau1761_slave();
+
+    /* Configure the 1761 bit clock PCG */
+    adau1761_cfg_pcg();
+
+    /* Initialize the CODEC */
+    init_adau1761(context->adau1761TwiHandle, SAM_ADAU1761_I2C_ADDR);
+
+    /* Initialize the CODEC SPORTs */
+    adau1761_sport_init(context, codecAudioOut, codecAudioIn);
+}

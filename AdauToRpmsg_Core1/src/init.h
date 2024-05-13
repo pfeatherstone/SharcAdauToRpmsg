@@ -13,6 +13,12 @@
 #include <rpmsg_lite.h>
 #include <rpmsg_ns.h>
 
+/* Simple driver headers */
+#include "twi_simple.h"
+#include "sport_simple.h"
+#include "pcg_simple.h"
+
+
 int rpmsg_init (
 	struct rpmsg_lite_instance* ctx
 );
