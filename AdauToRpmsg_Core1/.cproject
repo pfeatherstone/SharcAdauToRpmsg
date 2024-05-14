@@ -14,7 +14,7 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,com.analog.crosscore.managedbuilder.buildType=com.analog.crosscore.managedbuilder.buildType.debug" cleanCommand="rm -rf" description="" id="sharc.toolchain.configuration.debug.2116340661" name="Debug" parent="sharc.toolchain.configuration.debug">
+				<configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,com.analog.crosscore.managedbuilder.buildType=com.analog.crosscore.managedbuilder.buildType.debug" cleanCommand="clean" description="" id="sharc.toolchain.configuration.debug.2116340661" name="Debug" parent="sharc.toolchain.configuration.debug">
 					<folderInfo id="sharc.toolchain.configuration.debug.2116340661." name="/" resourcePath="">
 						<toolChain id="sharc.toolchain.debug.17777244" isAbstract="false" name="CrossCore SHARC Toolchain" superClass="sharc.toolchain" targetTool="sharc.toolchain.linker">
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="sharc.platform.1638303765" name="CrossCore SHARC Target Platform" osList="all" superClass="sharc.platform"/>
@@ -56,6 +56,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/sharc_reusable_components/sport}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/sharc_reusable_components/umm_malloc}&quot;"/>
 								</option>
+								<option id="compiler.option.compilerswitch.503995830" name="Compiler Switch" superClass="compiler.option.compilerswitch" value="false" valueType="boolean"/>
 								<inputType id="compiler.inputType.829313243" name="C/C++ Source" superClass="compiler.inputType"/>
 							</tool>
 							<tool id="sharc.toolchain.linker.1791708180" name="CrossCore SHARC Linker" superClass="sharc.toolchain.linker">
@@ -70,6 +71,10 @@
 									<listOptionValue builtIn="false" value="DEBUG"/>
 								</option>
 								<option id="linker.option.misrachecksrcfiles.143382720" name="-misra-no-cross-module" superClass="linker.option.misrachecksrcfiles" value="true" valueType="boolean"/>
+								<option id="linker.option.ldfprocessing.ldffile.801120266" name="Custom LDF (-T)" superClass="linker.option.ldfprocessing.ldffile" value="&quot;${ProjDirPath}/system/startup_ldf/app.ldf&quot;" valueType="string"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="linker.option.srchdir.2047644937" name="Library search directories (-L):" superClass="linker.option.srchdir" valueType="libPaths">
+									<listOptionValue builtIn="false" value="&quot;${OutDir}/system/startup_ldf&quot;"/>
+								</option>
 								<inputType id="linker.doj.input.497311668" name="Object Files" superClass="linker.doj.input"/>
 							</tool>
 							<tool id="sharc.toolchain.archiver.1173868380" name="CrossCore SHARC Archiver" superClass="sharc.toolchain.archiver">
@@ -127,7 +132,7 @@
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,com.analog.crosscore.managedbuilder.buildType=com.analog.crosscore.managedbuilder.buildType.release" cleanCommand="rm -rf" description="" id="sharc.toolchain.configuration.release.1571703482" name="Release" parent="sharc.toolchain.configuration.release">
+				<configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,com.analog.crosscore.managedbuilder.buildType=com.analog.crosscore.managedbuilder.buildType.release" cleanCommand="clean" description="" id="sharc.toolchain.configuration.release.1571703482" name="Release" parent="sharc.toolchain.configuration.release">
 					<folderInfo id="sharc.toolchain.configuration.release.1571703482." name="/" resourcePath="">
 						<toolChain id="sharc.toolchain.release.1206841463" isAbstract="false" name="CrossCore SHARC Toolchain" superClass="sharc.toolchain" targetTool="sharc.toolchain.linker">
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="sharc.platform.113335469" name="CrossCore SHARC Target Platform" osList="all" superClass="sharc.platform"/>
@@ -168,6 +173,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/sharc_reusable_components/sport}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/sharc_reusable_components/umm_malloc}&quot;"/>
 								</option>
+								<option id="compiler.option.compilerswitch.1326739319" name="Compiler Switch" superClass="compiler.option.compilerswitch" value="false" valueType="boolean"/>
 								<inputType id="compiler.inputType.364436349" name="C/C++ Source" superClass="compiler.inputType"/>
 							</tool>
 							<tool id="sharc.toolchain.linker.1798490930" name="CrossCore SHARC Linker" superClass="sharc.toolchain.linker">
@@ -182,6 +188,10 @@
 									<listOptionValue builtIn="false" value="RELEASE"/>
 								</option>
 								<option id="linker.option.misrachecksrcfiles.1931181828" name="-misra-no-cross-module" superClass="linker.option.misrachecksrcfiles" value="true" valueType="boolean"/>
+								<option id="linker.option.ldfprocessing.ldffile.1657982829" name="Custom LDF (-T)" superClass="linker.option.ldfprocessing.ldffile" value="&quot;${ProjDirPath}/system/startup_ldf/app.ldf&quot;" valueType="string"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="linker.option.srchdir.1934479314" name="Library search directories (-L):" superClass="linker.option.srchdir" valueType="libPaths">
+									<listOptionValue builtIn="false" value="&quot;${OutDir}/system/startup_ldf&quot;"/>
+								</option>
 								<inputType id="linker.doj.input.1278092884" name="Object Files" superClass="linker.doj.input"/>
 							</tool>
 							<tool id="sharc.toolchain.archiver.668427129" name="CrossCore SHARC Archiver" superClass="sharc.toolchain.archiver">
