@@ -73,10 +73,5 @@
 			<type>2</type>
 			<location>/home/pf/workspace/SharcAdauToRpmsg/sharc-reusable-components/oss-services/umm_malloc/src</location>
 		</link>
-		<link>
-			<name>system/services/tru/adi_tru.c</name>
-			<type>1</type>
-			<locationURI>CCES/SHARC/lib/src/services/Source/tru/adi_tru.c</locationURI>
-		</link>
 	</linkedResources>
 </projectDescription>

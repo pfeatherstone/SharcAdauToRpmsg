@@ -17,24 +17,15 @@
  * of 524287 blocks of UMM_BLOCK_SIZE bytes each.
  */
 
-#define UMM_SDRAM_HEAP_SIZE          ( 16 * 1024 * 1024 )
-#define UMM_SDRAM_UNCACHED_HEAP_SIZE (  1 * 1024 * 1024 )
-#define UMM_L2_CACHED_HEAP_SIZE      (       22 * 1024 )
-#define UMM_L2_UNCACHED_HEAP_SIZE    (        7 * 1024 )
+#define UMM_SDRAM_HEAP_SIZE ( 1 * 1024 * 1024 )
 
 #define UMM_HEAP_NAMES         \
 {                              \
     "UMM_SDRAM_HEAP",          \
-    "UMM_SDRAM_UNCACHED_HEAP", \
-    "UMM_L2_CACHED_HEAP",      \
-    "UMM_L2_UNCACHED_HEAP",    \
 }                              \
 
 typedef enum {
     UMM_SDRAM_HEAP = 0,
-    UMM_SDRAM_UNCACHED_HEAP,
-    UMM_L2_CACHED_HEAP,
-    UMM_L2_UNCACHED_HEAP,
     UMM_NUM_HEAPS
 } umm_heap_t;
 

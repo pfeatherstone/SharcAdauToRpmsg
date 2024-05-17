@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <root>
 	<installedComponents>
-		<component id="com.analog.crosscore.addins.ssldd.tru.sharcxi" name="TRU Service for SHARC" version="1.0.0" visible="true">
-			<component-description><![CDATA[This add-in provides Analog Devices' implementation of the Trigger Routing Unit Manager (TRU)]]></component-description>
-			<product name="Analog Devices System Services and Device Drivers" version="1.0.0"/>
-		</component>
 		<component id="com.analog.sourcegen.component.startup_ldf" name="Startup Code/LDF" version="1.0.0" visible="true">
 			<component-description><![CDATA[This component provides the ability to generate Startup Code and LDF source files. Startup code is a procedure that initializes and configures the processor when execution jumps to the "start" address on reset.
 It sets the machine into a known state, initializes selected features, and enables the standard runtime-model.
@@ -46,8 +42,8 @@ It provides information needed to link your code. It can be used to configure me
 						<property name="init_regs" value="false"/>
 						<property name="zero_return_regs" value="false"/>
 						<property name="using_cplusplus" value="true"/>
-						<property name="use_profiling" value="false"/>
 						<property name="use_argv" value="false"/>
+						<property name="use_profiling" value="false"/>
 						<property name="use_default_handlers" value="false"/>
 						<property name="use_user_mod_crt" value="true"/>
 						<property name="use_custom_vector" value="false"/>
@@ -58,8 +54,8 @@ It provides information needed to link your code. It can be used to configure me
 					</crt>
 					<ldf>
 						<propertygroup name="system_heap" value="L1">
-							<property name="size_units" value="kB"/>
 							<property name="min_size" value="2"/>
+							<property name="size_units" value="kB"/>
 							<property name="customized" value="false"/>
 						</propertygroup>
 						<propertygroup name="system_stack" value="L1">
@@ -67,25 +63,25 @@ It provides information needed to link your code. It can be used to configure me
 							<property name="customized" value="false"/>
 							<property name="min_size" value="2"/>
 						</propertygroup>
-						<propertygroup name="use_sdram" value="false">
+						<propertygroup name="use_sdram" value="true">
 							<property name="partitioned" value="default"/>
 							<property name="size" value="256"/>
 							<property name="dmc_size_1" value="256"/>
-							<property name="dmc_size_0" value="256"/>
 							<property name="size_units" value="MegaBytes"/>
+							<property name="dmc_size_0" value="256"/>
 						</propertygroup>
 						<propertygroup name="running_from_internal_memory" value="true"/>
 						<propertygroup name="libraries" value="true">
-							<property name="use_fileio_libs" value="false"/>
 							<property name="heap_dbg_libs" value="false"/>
 							<property name="no_libdrv" value="false"/>
 							<property name="use_eh_enabled_libs" value="false"/>
 							<property name="use_fixed_point_io_libs" value="false"/>
+							<property name="use_fileio_libs" value="false"/>
 							<property name="use_alt_io_lib" value="false"/>
 						</propertygroup>
 						<property name="use_eh" value="true"/>
-						<property name="use_full_cpplib" value="false"/>
 						<property name="user_heap_src_file" value="app_heaptab.c"/>
+						<property name="use_full_cpplib" value="false"/>
 						<property name="use_software_modules" value="false"/>
 						<property name="use_user_mod_ldf" value="true"/>
 						<property name="use_pgo_hw" value="false"/>

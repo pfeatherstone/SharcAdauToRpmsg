@@ -1,5 +1,5 @@
 /*
-** adi_initialize.h header file generated on May 14, 2024 at 16:02:27.
+** adi_initialize.h header file generated on May 17, 2024 at 15:48:39.
 **
 ** Copyright (C) 2000-2024 Analog Devices Inc., All Rights Reserved.
 **
@@ -24,4 +24,3 @@ int32_t adi_initComponents(void);
 #endif
 
 #endif /* __ADI_COMPONENT_INIT_H__ */
-

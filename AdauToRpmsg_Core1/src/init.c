@@ -21,15 +21,24 @@
 #include "init.h"
 #include "adc/adau1761.h"
 
-#define ADI_RESOURCE_TABLE_INIT_MAGIC 		(0xADE0AD0E)
-#define ADI_RESOURCE_TABLE_SHARC1_OFFSET 	(0x400) //1KiB
+#define ADI_RESOURCE_TABLE_INIT_MAGIC       (0xADE0AD0E)
+#define ADI_RESOURCE_TABLE_SHARC1_OFFSET    (0x400) //1KiB
+#define ADI_VRING_BUFFER_SIZE               0x00100000
 
-#define SYSTEM_MCLK_RATE               		(24576000)
-#define SYSTEM_SAMPLE_RATE             		(48000)
-#define SYSTEM_BLOCK_SIZE              		(64)
+#define SYSTEM_MCLK_RATE               (24576000)
+#define SYSTEM_SAMPLE_RATE             (48000)
+#define SYSTEM_BLOCK_SIZE              (64)
 
-#define BITP_PADS0_DAI0_IE_MCLK 			BITP_PADS0_DAI0_IE_PB06
-#define DAI0_MCLK_PIN 						6
+/***********************************************************************
+ * Audio Clock Initialization
+ **********************************************************************/
+/* DAI IE Bit definitions (not in any ADI header files) */
+#define BITP_PADS0_DAI0_IE_PB06   (6)
+#define BITP_PADS0_DAI0_IE_PB07   (7)
+#define BITP_PADS0_DAI0_IE_PB08   (8)
+#define BITP_PADS0_DAI0_IE_PB13   (13)
+#define BITP_PADS0_DAI0_IE_MCLK BITP_PADS0_DAI0_IE_PB06
+#define DAI0_MCLK_PIN 6
 
 /*
  * Expected resource table layout in the shared memory.
@@ -44,7 +53,7 @@ struct sharc_resource_table {
 }RL_PACKED_END;
 
 RL_PACKED_BEGIN
-struct adi_resource_table{
+struct adi_resource_table {
 	uint8_t tag[16];
 	uint32_t version;
 	uint32_t initialized;
@@ -53,45 +62,36 @@ struct adi_resource_table{
 	struct sharc_resource_table tbl;
 }RL_PACKED_END;
 
-
 const struct adi_resource_table rsc_tbl_local = {
-		.tag = "AD-RESOURCE-TBL",
-		.version = 1,
-		.initialized = 0,
-		.tbl.table_hdr = {
-			/* resource table header */
-			1, 								 /* version */
-			1, /* number of table entries */
-			{0, 0,},					 /* reserved fields */
-		},
-		.tbl.offset = {offsetof(struct sharc_resource_table, rpmsg_vdev),
-		},
-		.tbl.rpmsg_vdev = {RSC_VDEV, /* virtio dev type */
-			7, /* it's rpmsg virtio */
-			1, /* kick sharc0 */
-			/* 1<<0 is VIRTIO_RPMSG_F_NS bit defined in virtio_rpmsg_bus.c */
-			1<<0, 0, 0, 0, /* dfeatures, gfeatures, config len, status */
-			2, /* num_of_vrings */
-			{0, 0,}, /* reserved */
-		},
-		.tbl.vring = {
-			{(uint32_t)-1, VRING_ALIGN, 512, 1, 0}, /* da allocated by remoteproc driver */
-			{(uint32_t)-1, VRING_ALIGN, 512, 1, 0}, /* da allocated by remoteproc driver */
-		},
+    .tag = "AD-RESOURCE-TBL",
+    .version = 1,
+    .initialized = 0,
+    .tbl.table_hdr = {
+        /* resource table header */
+        1, 		/* version */
+        1, 		/* number of table entries */
+        {0, 0,},	/* reserved fields */
+    },
+    .tbl.offset = {offsetof(struct sharc_resource_table, rpmsg_vdev),
+    },
+    .tbl.rpmsg_vdev = {RSC_VDEV, /* virtio dev type */
+        7, 			/* it's rpmsg virtio */
+        1, 			/* kick sharc0 */
+        /* 1<<0 is VIRTIO_RPMSG_F_NS bit defined in virtio_rpmsg_bus.c */
+        1<<0, 0, 0, 0, 	/* dfeatures, gfeatures, config len, status */
+        2, 			/* num_of_vrings */
+        {0, 0,}, 		/* reserved */
+    },
+    .tbl.vring = {
+        {(uint32_t)-1, VRING_ALIGN, 512, 1, 0}, /* da allocated by remoteproc driver */
+        {(uint32_t)-1, VRING_ALIGN, 512, 1, 0}, /* da allocated by remoteproc driver */
+    },
 };
-
-/*
- * Two resource tables, one for each core.
- * The ___MCAPI_common_start address is defined in app.ldf
- */
-extern "asm" struct adi_resource_table ___MCAPI_common_start;
-volatile struct adi_resource_table *adi_resource_table;
-volatile struct sharc_resource_table *resource_table;
 
 /*
  * Helper struct which represents memory ranges used by a vring.
  */
-struct _mem_range{
+struct _mem_range {
 	uint32_t start;
 	uint32_t end;
 };
@@ -99,37 +99,42 @@ struct _mem_range{
 /*
  * Helper function which reads memory ranges used by a vring.
  */
-void vring_get_descriptor_range(volatile struct fw_rsc_vdev_vring *vring, struct _mem_range *range)
-{
+void vring_get_descriptor_range(volatile struct fw_rsc_vdev_vring *vring, struct _mem_range *range){
 	struct vring_desc *desc = (struct vring_desc *)vring->da;
-	range->start 			= (uint32_t)desc;
-	range->end 				= (uint32_t)desc + vring_size(vring->num, vring->align);
+	range->start    = (uint32_t)desc;
+	range->end      = (uint32_t)desc + vring_size(vring->num, vring->align);
+}
+void vring_get_buffer_range(volatile struct fw_rsc_vdev_vring *vring, struct _mem_range *range){
+	struct vring_desc *desc = (struct vring_desc *)vring->da;
+	uint32_t num    = 2 * vring->num; // vring0 descriptor has pointer to buffers for both vrings
+	range->start    = (uint32_t)desc->addr;
+	range->end      = (uint32_t)desc->addr + num * (RL_BUFFER_PAYLOAD_SIZE +16);
 }
 
-void vring_get_buffer_range(volatile struct fw_rsc_vdev_vring *vring, struct _mem_range *range)
-{
-	struct vring_desc *desc = (struct vring_desc *)vring->da;
-	const uint32_t num 		= 2 * vring->num; // vring0 descriptor has pointer to buffers for both vrings
-	range->start 			= (uint32_t)desc->addr;
-	range->end 				= (uint32_t)desc->addr + num * (RL_BUFFER_PAYLOAD_SIZE +16);
-}
+/*
+ * Two resource tables, one for each core.
+ * The ___MCAPI_common_start address is defined in app.ldf
+ */
+extern "asm" struct adi_resource_table ___MCAPI_common_start;
+volatile struct adi_resource_table*     adi_resource_table;
+volatile struct sharc_resource_table*   resource_table;
 
-void init_rsc_tbl(void)
-{
+void init_rsc_tbl(void) {
+
 	switch(adi_core_id()){
 	case ADI_CORE_ARM:
-		return;
+		return; // Should never happen
 	case ADI_CORE_SHARC0:
-		adi_resource_table 	= &___MCAPI_common_start;
-		resource_table 		= &___MCAPI_common_start.tbl;
+		adi_resource_table = &___MCAPI_common_start;
+		resource_table = &___MCAPI_common_start.tbl;
 		break;
 	case ADI_CORE_SHARC1:
-		adi_resource_table 	= (struct adi_resource_table *)((uint32_t)&___MCAPI_common_start + ADI_RESOURCE_TABLE_SHARC1_OFFSET);
-		resource_table 		= &adi_resource_table->tbl;
+		adi_resource_table = (struct adi_resource_table *)
+			((uint32_t)&___MCAPI_common_start + ADI_RESOURCE_TABLE_SHARC1_OFFSET);
+		resource_table = &adi_resource_table->tbl;
 		break;
 	default:
-		// should never happen
-		break;
+		break; // should never happen
 	}
 
 	/* Don't initialize if remoteproc driver has already */
@@ -170,22 +175,21 @@ int rpmsg_init (
 	struct rpmsg_lite_instance* ctx
 )
 {
-	struct rpmsg_lite_instance *rpmsg_instance;
 	adiCacheStatus status;
 	struct _mem_range range0;
 	struct _mem_range range1;
 
+	// Initialize table pointeers
 	init_rsc_tbl();
-	while(!rsc_tbl_ready()){
-		/* Wait for resource table to be initialized by ARM*/
-	}
+	// Wait for resource table to be initialized by ARM
+	while(!rsc_tbl_ready());
 
 	// Get memory range which needs disabled cache
 	// Read vring descriptors memory range
 	vring_get_descriptor_range(&resource_table->vring[0], &range0);
 	vring_get_descriptor_range(&resource_table->vring[1], &range1);
-	range0.start = min(range0.start, range1.start);
-	range0.end = max(range0.end, range1.end);
+	range0.start    = min(range0.start, range1.start);
+	range0.end      = max(range0.end, range1.end);
 	// Disable cache for the descriptors memory range
 	status = adi_cache_set_range ((void *)range0.start,
 						(void *)(range0.end),
@@ -201,7 +205,8 @@ int rpmsg_init (
 						adi_cache_rr7,
 						adi_cache_noncacheable_range);
 
-	if(rpmsg_lite_remote_init(
+	// Init RPMSG pointers
+	if (rpmsg_lite_remote_init(
 			(void*)&resource_table->rpmsg_vdev,
 			RL_PLATFORM_SHARC_ARM_LINK_ID,
 			RL_SHM_VDEV,
@@ -266,31 +271,13 @@ void rpmsg_free_channel (
 /***********************************************************************
  * UMM_MALLOC heap initialization
  **********************************************************************/
-__attribute__ ((section(".heap")))
-	static uint8_t umm_sdram_heap[UMM_SDRAM_HEAP_SIZE];
-
-__attribute__ ((section(".l3_uncached_data")))
-    static uint8_t umm_sdram_uncached_heap[UMM_SDRAM_UNCACHED_HEAP_SIZE];
-
-__attribute__ ((section(".l2_uncached_data")))
-    static uint8_t umm_l2_uncached_heap[UMM_L2_UNCACHED_HEAP_SIZE];
-
-__attribute__ ((section(".l2_cached_data")))
-    static uint8_t umm_l2_cached_heap[UMM_L2_CACHED_HEAP_SIZE];
+#pragma section("seg_sdram_bsz_data", ZERO_INIT)
+static uint8_t umm_sdram_heap[UMM_SDRAM_HEAP_SIZE];
 
 void heap_initialize(void)
 {
 	/* Initialize the cached L3 SDRAM heap (default heap). */
 	umm_init(UMM_SDRAM_HEAP, umm_sdram_heap, UMM_SDRAM_HEAP_SIZE);
-
-	/* Initialize the un-cached L3 SDRAM heap. */
-	umm_init(UMM_SDRAM_UNCACHED_HEAP, umm_sdram_uncached_heap, UMM_SDRAM_UNCACHED_HEAP_SIZE);
-
-	/* Initialize the L2 uncached heap. */
-	umm_init(UMM_L2_UNCACHED_HEAP, umm_l2_uncached_heap, UMM_L2_UNCACHED_HEAP_SIZE);
-
-	/* Initialize the L2 cached heap. */
-	umm_init(UMM_L2_CACHED_HEAP, umm_l2_cached_heap, UMM_L2_CACHED_HEAP_SIZE);
 }
 
 /***********************************************************************
