@@ -1,5 +1,5 @@
 /*
-** ADSP-SC589 core 1 linker description file generated on May 14, 2024 at 16:02:26.
+** ADSP-SC589 core 1 linker description file generated on May 17, 2024 at 15:58:18.
 */
 /*
 ** Copyright (C) 2000-2023 Analog Devices Inc., All Rights Reserved.
@@ -198,6 +198,63 @@ MEMORY
 
   #define MY_L2_UNCACHED_MEM mem_L2B1P4_bw
   #define MY_L2_CACHED_MEM   mem_L2B7B8_bw
+
+   // ----------------------- L3 ------------------------------------------------
+   // DMC0 and DMC1 DDR SDRAM memory is partitioned between the cores.
+   //
+   // Notes
+   //  1. Code execution addresses are restricted for the SHARC cores so
+   //     the memory allocated cannot be increased or moved.
+   //  2. All L3 will be considered cached.
+   //  3. MY_SDRAM_DATA1_MEM is defined to be the smaller L3 data section and
+   //     MY_SDRAM_DATA2_MEM is the larger one.
+   //  4. Due to anomaly 20-00-0019 some memory in DDR-A and DDR-B cannot be
+   //     used for VISA code execution.
+
+   // ----------------------- 256MB DMC0(DDR-A) ---------------------------------
+   // 256MB DMC0 DDR SDRAM memory is partitioned as follows:
+   //   DDR-A part1 : SHARC0 NW code, 6MB
+   //   DDR-A part2 : SHARC0 data, 4MB
+   //   DDR-A part3 : SHARC0 VISA code, 6MB (reduced for 20000019 workaround)
+   //   DDR-A part4 : SHARC0 data, 128MB
+   //   DDR-A part5 : SHARC1 data, 112MB
+   mem_DMC0_SDRAM_A1       { TYPE(BW RAM) START(0x80000000) END(0x805fffff) WIDTH(8) }
+   mem_DMC0_SDRAM_A2       { TYPE(BW RAM) START(0x80600000) END(0x809fffff) WIDTH(8) }
+   #if defined(__WORKAROUND_20000019)
+   mem_DMC0_SDRAM_A3       { TYPE(BW RAM) START(0x80a00000) END(0x80bfffff) WIDTH(8) }
+   #else
+   mem_DMC0_SDRAM_A3       { TYPE(BW RAM) START(0x80a00000) END(0x80ffffff) WIDTH(8) }
+   #endif
+   mem_DMC0_SDRAM_A4       { TYPE(BW RAM) START(0x81000000) END(0x88ffffff) WIDTH(8) }
+   mem_DMC0_SDRAM_A5       { TYPE(BW RAM) START(0x89000000) END(0x8fffffff) WIDTH(8) }
+
+   // ----------------------- 256MB DMC1(DDR-B) ---------------------------------
+   // 256MB DMC1 DDR SDRAM memory is partitioned as follows:
+   //   DDR-B part1 : SHARC1 NW code, 6MB
+   //   DDR-B part2 : SHARC1 data, 4MB
+   //   DDR-B part3 : SHARC1 VISA code, 6MB (reduced for 20000019 workaround)
+   //   DDR-B part4 : ARM, 240MB
+   mem_DMC1_SDRAM_B1       { TYPE(BW RAM) START(0xc0000000) END(0xc05fffff) WIDTH(8) }
+   mem_DMC1_SDRAM_B2       { TYPE(BW RAM) START(0xc0600000) END(0xc09fffff) WIDTH(8) }
+   #if defined(__WORKAROUND_20000019)
+   mem_DMC1_SDRAM_B3       { TYPE(BW RAM) START(0xc0A00000) END(0xc0bfffff) WIDTH(8) }
+   #else
+   mem_DMC1_SDRAM_B3       { TYPE(BW RAM) START(0xc0A00000) END(0xc0ffffff) WIDTH(8) }
+   #endif
+   mem_DMC1_SDRAM_B4       { TYPE(BW RAM) START(0xc1000000) END(0xcfffffff) WIDTH(8) }
+
+  #define MY_SDRAM_NWCODE_MEM mem_DMC0_SDRAM_A1
+  #define MY_SDRAM_DATA1_MEM  mem_DMC0_SDRAM_A2
+  #define MY_SDRAM_SWCODE_MEM mem_DMC0_SDRAM_A3
+  #define MY_SDRAM_DATA2_MEM  mem_DMC0_SDRAM_A4
+
+  #if !defined(SDRAM_STACK_HEAP_BLOCK)
+   #if defined(MY_SDRAM_DATA2_MEM)
+    #define SDRAM_STACK_HEAP_BLOCK MY_SDRAM_DATA2_MEM
+   #else
+    #define SDRAM_STACK_HEAP_BLOCK MY_SDRAM_DATA1_MEM
+   #endif
+  #endif
    
    /*$VDSG<insert-new-memory-segments>                          */
    /* Text inserted between these $VDSG comments will be preserved */
@@ -1170,42 +1227,6 @@ PROCESSOR SC589_CORE_1
          
       } > MY_L2_CACHED_MEM
       
-      dxe_l2_cpp_ctors_nw DM
-      {
-         // C++ global constructors list for word-addressed code.
-         FORCE_CONTIGUITY
-         __ctors = .;    // __ctors points to the start of the section
-         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdm) )
-         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdml) )
-      } > MY_L2_CACHED_MEM
-      
-      dxe_l2_cpp_eh_gdt_nw DM
-      {
-         // C++ exceptions data table.
-         FORCE_CONTIGUITY
-         INPUT_SECTIONS( $OBJS_LIBS(.gdt32 .gdt) )
-         INPUT_SECTIONS( $OBJS_LIBS(.gdtl32 .gdtl) )
-      } > MY_L2_CACHED_MEM
-      
-      dxe_l2_cpp_eh_gdt_bw BW
-      {
-         // C++ exceptions data table.
-         INPUT_SECTION_ALIGN(4)
-         FORCE_CONTIGUITY
-         INPUT_SECTIONS( $OBJS_LIBS(.gdt) )
-         INPUT_SECTIONS( $OBJS_LIBS(.gdtl) )
-      } > MY_L2_CACHED_MEM
-      
-      dxe_l2_cpp_ctors_bw BW
-      {
-         // C++ global constructors list for byte-addressed code.
-         INPUT_SECTION_ALIGN(4)
-         FORCE_CONTIGUITY
-         _ctors. = .;    // _ctors. points to the start of the section
-         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdm) )
-         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdml seg_ctdml_bw) )
-      } > MY_L2_CACHED_MEM
-      
       dxe_l2_user_tables_bw BW
       {
          FORCE_CONTIGUITY
@@ -1331,6 +1352,302 @@ PROCESSOR SC589_CORE_1
       #endif // MY_L2_UNCACHED_MEM
 
     // ------------------------------------------------------------------
+    // SDRAM
+
+      
+      /*$VDSG<insert-new-sections-for-sdram>                    */
+      /* Text inserted between these $VDSG comments will be preserved */
+      /*$VDSG<insert-new-sections-for-sdram>                    */
+      
+
+      // The symbols defined below are used in runtime support for MCAPI and
+      // caches.
+      ___sdram_start        = MEMORY_START(mem_DMC0_SDRAM_A1);
+      ___sdram_end          = MEMORY_END  (mem_DMC1_SDRAM_B4);
+      ___sdram_arm_start    = MEMORY_START(mem_DMC1_SDRAM_B4);
+      ___sdram_arm_end      = MEMORY_END  (mem_DMC1_SDRAM_B4);
+      
+      /*$VDSG<insert-new-sections-at-mem_sdram_code>            */
+      /* Text inserted between these $VDSG comments will be preserved */
+      /*$VDSG<insert-new-sections-at-mem_sdram_code>            */
+      
+      #if defined(MY_SDRAM_SWCODE_MEM)
+      dxe_sdram_sw_code SW
+      {
+         // VISA code.
+         INPUT_SECTION_ALIGN(2)
+         FILL(0x1)  // fill gaps in memory with NOPs
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_sw_code>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_sw_code>  */
+         
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram seg_ext_code seg_swco seg_pmco) )
+         
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_sw_code>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_sw_code>  */
+         
+      } > MY_SDRAM_SWCODE_MEM
+      
+      #endif // defined(MY_SDRAM_SWCODE_MEM)
+      dxe_sdram_nw_code PM
+      {
+         // ISA code.
+         INPUT_SECTION_ALIGN(2)
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_nw_code>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_nw_code>  */
+         
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram seg_ext_code seg_pmco) )
+         
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_nw_code>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_nw_code>  */
+         
+      } > MY_SDRAM_NWCODE_MEM
+      
+      
+      /*$VDSG<insert-new-sections-at-mem_sdram_dmda>            */
+      /* Text inserted between these $VDSG comments will be preserved */
+      /*$VDSG<insert-new-sections-at-mem_sdram_dmda>            */
+      
+      dxe_sdram_user_tables_nw DM
+      {
+         FORCE_CONTIGUITY
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_user_tables_nw>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_user_tables_nw>  */
+         
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_cpp_ctors_nw DM
+      {
+         // C++ global constructors list for word-addressed code.
+         FORCE_CONTIGUITY
+         __ctors = .;    // __ctors points to the start of the section
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdm) )
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdml) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_cpp_eh_gdt_nw DM
+      {
+         // C++ exceptions data table.
+         FORCE_CONTIGUITY
+         INPUT_SECTIONS( $OBJS_LIBS(.gdt32 .gdt) )
+         INPUT_SECTIONS( $OBJS_LIBS(.gdtl32 .gdtl) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_cpp_eh_gdt_bw BW
+      {
+         // C++ exceptions data table.
+         INPUT_SECTION_ALIGN(4)
+         FORCE_CONTIGUITY
+         INPUT_SECTIONS( $OBJS_LIBS(.gdt) )
+         INPUT_SECTIONS( $OBJS_LIBS(.gdtl) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_cpp_ctors_bw BW
+      {
+         // C++ global constructors list for byte-addressed code.
+         INPUT_SECTION_ALIGN(4)
+         FORCE_CONTIGUITY
+         _ctors. = .;    // _ctors. points to the start of the section
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdm) )
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ctdml seg_ctdml_bw) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_user_tables_bw BW
+      {
+         FORCE_CONTIGUITY
+         INPUT_SECTION_ALIGN(4)
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_user_tables_bw>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_user_tables_bw>  */
+         
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_stack_and_heap_reserve NO_INIT BW
+      {
+      } > SDRAM_STACK_HEAP_BLOCK
+      
+      dxe_sdram_data DM
+      {
+         // general data.
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_data>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_data>  */
+         
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram seg_ext_data seg_dmda_nw seg_dmda seg_vtbl .rtti .cht .edt) )
+         
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_data>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_data>  */
+         
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_data_bw BW
+      {
+         // general data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram seg_ext_data seg_dmda_bw seg_dmda seg_vtbl .rtti .cht .edt) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_bsz ZERO_INIT DM
+      {
+         // zero init data.
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_bsz>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_bsz>  */
+         
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_bsz_data seg_bsz_data .bss32 .bss) )
+         
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_bsz>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_bsz>  */
+         
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_bsz_bw ZERO_INIT BW
+      {
+         // zero init data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_bsz_data seg_bsz_data .bss8 .bss) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_noinit NO_INIT DM
+      {
+         // no init data.
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_noinit_data seg_noinit_data) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_noinit_bw NO_INIT BW
+      {
+         // no init data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_noinit_data seg_noinit_data) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      
+      /*$VDSG<insert-new-sections-at-mem_sdram_pmda>            */
+      /* Text inserted between these $VDSG comments will be preserved */
+      /*$VDSG<insert-new-sections-at-mem_sdram_pmda>            */
+      
+      dxe_sdram_pm_data PM 32
+      {
+         // pm data.
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_pm_data>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_pm_data>  */
+         
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ext_pmda seg_pmda_nw seg_pmda) )
+         
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_pm_data>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-end-of-dxe_sdram_pm_data>  */
+         
+      } > MY_SDRAM_DATA1_MEM
+      
+      dxe_sdram_pm_data_bw BW
+      {
+         // pm data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ext_pmda seg_pmda) )
+      } > MY_SDRAM_DATA1_MEM
+      
+      #if defined(MY_SDRAM_DATA2_MEM)
+      dxe_sdram_data2 DM
+      {
+         // general data.
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram seg_ext_data seg_dmda_nw seg_dmda seg_vtbl .rtti .cht .edt) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      dxe_sdram_data2_bw BW
+      {
+         // general data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram seg_ext_data seg_dmda_bw seg_dmda seg_vtbl .rtti .cht .edt) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      dxe_sdram_bsz2 ZERO_INIT DM
+      {
+         // zero init data.
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_bsz_data seg_bsz_data .bss32 .bss) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      dxe_sdram_bsz2_bw ZERO_INIT BW
+      {
+         // zero init data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_bsz_data seg_bsz_data .bss8 .bss) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      dxe_sdram_noinit2 NO_INIT DM
+      {
+         // no init data.
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_noinit_data seg_noinit_data) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      dxe_sdram_noinit2_bw NO_INIT BW
+      {
+         // no init data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_noinit_data seg_noinit_data) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      dxe_sdram_pm_data2 PM 32
+      {
+         // pm data.
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ext_pmda seg_pmda_nw seg_pmda) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      dxe_sdram_pm_data2_bw BW
+      {
+         // pm data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ext_pmda seg_pmda) )
+      } > MY_SDRAM_DATA2_MEM
+      
+      #endif // defined MY_SDRAM_DATA2_MEM
+ 
+      #if defined(MY_SDRAM_BWONLY_MEM)
+      dxe_sdram_data3_bw BW
+      {
+         // general data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram seg_ext_data seg_dmda_bw seg_dmda seg_vtbl .rtti .cht .edt) )
+      } > MY_SDRAM_BWONLY_MEM
+      
+      dxe_sdram_bsz3_bw ZERO_INIT BW
+      {
+         // zero init data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_bsz_data seg_bsz_data .bss8 .bss) )
+      } > MY_SDRAM_BWONLY_MEM
+      
+      dxe_sdram_noinit3_bw NO_INIT BW
+      {
+         // no init data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_sdram_noinit_data seg_noinit_data) )
+      } > MY_SDRAM_BWONLY_MEM
+      
+      dxe_sdram_pm_data3_bw BW
+      {
+         // pm data.
+         INPUT_SECTION_ALIGN(4)
+         INPUT_SECTIONS( $OBJS_LIBS(seg_ext_pmda seg_pmda) )
+      } > MY_SDRAM_BWONLY_MEM
+      
+      #endif // defined MY_SDRAM_BWONLY_MEM
+
+    // ------------------------------------------------------------------
     // Complete the stack and heap definitions.
 
       
@@ -1359,6 +1676,15 @@ PROCESSOR SC589_CORE_1
          /*$VDSG<insert-input-sections-at-the-start-of-dxe_L2_stack_and_heap>  */
          
       } > MY_L2_CACHED_MEM
+      
+      dxe_sdram_stack_and_heap_expand NO_INIT BW
+      {
+         
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_stack_and_heap>  */
+         /* Text inserted between these $VDSG comments will be preserved */
+         /*$VDSG<insert-input-sections-at-the-start-of-dxe_sdram_stack_and_heap>  */
+         
+      } > SDRAM_STACK_HEAP_BLOCK
       
 
     // ------------------------------------------------------------------

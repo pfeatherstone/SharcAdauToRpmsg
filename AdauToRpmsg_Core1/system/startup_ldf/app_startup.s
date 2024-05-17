@@ -1,5 +1,5 @@
 /*
-** ADSP-SC589 startup code generated on May 14, 2024 at 16:02:26.
+** ADSP-SC589 startup code generated on May 17, 2024 at 15:58:18.
 */
 /*
 ** Copyright (C) 2000-2023 Analog Devices Inc., All Rights Reserved.
@@ -203,6 +203,15 @@ start:
       */
 .end_of_user_code_after_setup:
 /*$VDSG<insert-code-after-setup>                                */
+
+      /*
+      ** Set a noncacheable range for the SDRAM memory that is allocated to
+      ** the ARM core.
+      */
+      .EXTERN __lib_set_noncacheable_arm_cache_range.;
+      CJUMP __lib_set_noncacheable_arm_cache_range. (DB);
+         DM(I7, M7) = R2;
+         DM(I7, M7) = PC;
 
       /*
       ** Enable the ILOPI interrupt to support illegal opcode detection.
